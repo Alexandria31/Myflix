@@ -1,88 +1,75 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const morgan = require("morgan");
+const express = require('express');
+const bodyParser = require('body-parser');
+const morgan = require('morgan');
+const mongoose = require('mongoose');
+const bcrypt = require('bcrypt');
+const User = require('./models/User'); // Ensure this path is correct
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(morgan("combined")); // Use Morgan for logging
+app.use(morgan('combined')); // Use Morgan for logging
 app.use(bodyParser.json());
+
+// MongoDB connection
+mongoose.connect('mongodb://localhost:27017/moviesDB', { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => console.log('MongoDB connected'))
+    .catch(err => console.log('MongoDB connection error:', err));
 
 // Sample movie data
 let movies = [
-  {
-    id: 1,
-    title: "Inception",
-    director: "Christopher Nolan",
-    year: 2010,
-    genre: "Sci-Fi",
-  },
-  {
-    id: 2,
-    title: "The Godfather",
-    director: "Francis Ford Coppola",
-    year: 1972,
-    genre: "Crime",
-  },
-  {
-    id: 3,
-    title: "The Dark Knight",
-    director: "Christopher Nolan",
-    year: 2008,
-    genre: "Action",
-  },
+    { id: 1, title: "Inception", director: "Christopher Nolan", year: 2010, genre: "Sci-Fi" },
+    { id: 2, title: "The Godfather", director: "Francis Ford Coppola", year: 1972, genre: "Crime" },
+    { id: 3, title: "The Dark Knight", director: "Christopher Nolan", year: 2008, genre: "Action" }
 ];
 
-// Routes
+// User registration route
+app.post('/register', async (req, res) => {
+    const { username, password } = req.body;
 
-// Get all movies
-app.get("/movies", (req, res) => {
-  res.status(200).json(movies);
+    // Check if the user already exists
+    const existingUser = await User.findOne({ username });
+    if (existingUser) {
+        return res.status(400).send('Username already taken');
+    }
+
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create a new user
+    const newUser = new User({
+        username,
+        password: hashedPassword
+    });
+
+    try {
+        await newUser.save();
+        res.status(201).send('User registered successfully');
+    } catch (error) {
+        res.status(500).send('Error registering user');
+    }
 });
 
-// Get a movie by ID
-app.get("/movies/:id", (req, res) => {
-  const movie = movies.find((m) => m.id === parseInt(req.params.id));
-  if (!movie) return res.status(404).send("Movie not found");
-  res.status(200).json(movie);
-});
+// User login route
+app.post('/login', async (req, res) => {
+    const { username, password } = req.body;
 
-// Create a new movie
-app.post("/movies", (req, res) => {
-  const newMovie = {
-    id: movies.length + 1,
-    title: req.body.title,
-    director: req.body.director,
-    year: req.body.year,
-    genre: req.body.genre,
-  };
-  movies.push(newMovie);
-  res.status(201).json(newMovie);
-});
+    // Find the user by username
+    const user = await User.findOne({ username });
+    if (!user) {
+        return res.status(400).send('Invalid username or password');
+    }
 
-// Update a movie by ID
-app.patch("/movies/:id", (req, res) => {
-  const movie = movies.find((m) => m.id === parseInt(req.params.id));
-  if (!movie) return res.status(404).send("Movie not found");
+    // Check the password
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) {
+        return res.status(400).send('Invalid username or password');
+    }
 
-  if (req.body.title) movie.title = req.body.title;
-  if (req.body.director) movie.director = req.body.director;
-  if (req.body.year) movie.year = req.body.year;
-  if (req.body.genre) movie.genre = req.body.genre;
-
-  res.status(200).json(movie);
-});
-
-// Delete a movie by ID
-app.delete("/movies/:id", (req, res) => {
-  const movieIndex = movies.findIndex((m) => m.id === parseInt(req.params.id));
-  if (movieIndex === -1) return res.status(404).send("Movie not found");
-
-  const deletedMovie = movies.splice(movieIndex, 1);
-  res.status(200).json(deletedMovie);
+    res.status(200).send('Login successful');
 });
 
 // Start the server
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });
