@@ -3,7 +3,7 @@ const bodyParser = require('body-parser');
 const morgan = require('morgan');
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
-const User = require('./models/User'); // Ensure this path is correct
+const User = require('./models/user'); // Ensure this path is correct
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -12,9 +12,9 @@ app.use(morgan('combined')); // Use Morgan for logging
 app.use(bodyParser.json());
 
 // MongoDB connection
-mongoose.connect('mongodb://localhost:27017/moviesDB', { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log('MongoDB connected'))
-    .catch(err => console.log('MongoDB connection error:', err));
+mongoose.connect('mongodb://localhost:27017/mydatabase' , {
+    
+});
 
 // Sample movie data
 let movies = [
